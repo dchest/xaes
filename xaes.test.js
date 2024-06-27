@@ -15,7 +15,7 @@ test("xaes generateKey/encrypt/decrypt", async () => {
 
 test("xaes importKey, exportKey", async () => {
     const key = new Uint8Array(32).fill(0x04);
-    const imported = await importKey("raw", key, true, key.usages);
+    const imported = await importKey("raw", key, true);
     const exported = await exportKey("raw", imported);
     expect(exported).toEqual(key.buffer);
 });
@@ -27,8 +27,7 @@ test("xaes test vector", async () => {
     const key = await importKey(
         "raw",
         new Uint8Array(32).fill(0x01),
-        false,
-        ["encrypt", "decrypt"]
+        false
     );
     const ciphertext = await encrypt({ iv: nonce }, key, plaintext);
     const got = Array.from(new Uint8Array(ciphertext), byte => byte.toString(16).padStart(2, "0")).join("");
@@ -43,8 +42,7 @@ test("xaes test vector with additional data", async () => {
     const key = await importKey(
         "raw",
         new Uint8Array(32).fill(0x03),
-        false,
-        ["encrypt", "decrypt"]
+        false
     );
     const aad = new TextEncoder().encode("c2sp.org/XAES-256-GCM");
     const nonce = new TextEncoder().encode("ABCDEFGHIJKLMNOPQRSTUVWX");
@@ -76,7 +74,7 @@ test("xaes test vector, accumulated", async () => {
         const aad = new Uint8Array(length[0]);
         rng.stream(aad);
 
-        const cryptoKey = await importKey("raw", key, false, ["encrypt", "decrypt"]);
+        const cryptoKey = await importKey("raw", key, false);
         const ciphertext = await encrypt({ iv: nonce, additionalData: aad }, cryptoKey, plaintext);
         const decrypted = await decrypt({ iv: nonce, additionalData: aad }, cryptoKey, ciphertext);
         expect(new Uint8Array(decrypted)).toEqual(plaintext);
