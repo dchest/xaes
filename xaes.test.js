@@ -6,10 +6,10 @@ test("xaes generateKey/encrypt/decrypt", async () => {
     const key = await generateKey();
     const iv = new Uint8Array(24).fill(1);
     const data = new Uint8Array(122).fill(2);
-    const ad = new Uint8Array(16).fill(3);
-    const params = { iv };
-    const encrypted = await encrypt(params, key, data, ad);
-    const decrypted = await decrypt(params, key, encrypted, ad);
+    const additionalData = new Uint8Array(16).fill(3);
+    const params = { iv, additionalData };
+    const encrypted = await encrypt(params, key, data);
+    const decrypted = await decrypt(params, key, encrypted);
     expect(decrypted).toEqual(data.buffer);
 });
 
