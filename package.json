@@ -1,0 +1,26 @@
+{
+  "name": "xaes",
+  "version": "0.0.1",
+  "description": "XAES-256-GCM implementation using Web Cryptography API",
+  "module": "xaes.js",
+  "types": "xaes.d.ts",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dchest/xaes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dchest/xaes/issues"
+  },
+  "homepage": "https://github.com/dchest/xaes",
+  "scripts": {
+    "test": "vitest run",
+    "types": "tsc xaes.js --declaration --allowJs --emitDeclarationOnly"
+  },
+  "devDependencies": {
+    "@stablelib/sha3": "^1.0.1",
+    "typescript": "^5.5.2",
+    "vitest": "^1.6.0"
+  }
+}
