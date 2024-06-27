@@ -44,12 +44,12 @@ export function generateKey(extractable?: boolean): Promise<CryptoKey>;
  *
  * This function is not necessary, as you can use crypto.subtle.importKey with AES-CBC directly.
  *
- * @param {"raw" | "pkcs8" | "spki"} format
- * @param {BufferSource} keyData
+ * @param {"jwk" | "raw" | "pkcs8" | "spki"} format
+ * @param {BufferSource | JsonWebKey} keyData
  * @param {boolean} extractable
  * @returns {Promise<CryptoKey>}
  */
-export function importKey(format: "raw" | "pkcs8" | "spki", keyData: BufferSource, extractable?: boolean): Promise<CryptoKey>;
+export function importKey(format: "jwk" | "raw" | "pkcs8" | "spki", keyData: BufferSource | JsonWebKey, extractable?: boolean): Promise<CryptoKey>;
 /**
  * Export a key.
  * The resulting export will have AES-CBC algorithm specified.

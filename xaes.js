@@ -173,13 +173,13 @@ export async function generateKey(extractable = false) {
  *
  * This function is not necessary, as you can use crypto.subtle.importKey with AES-CBC directly.
  *
- * @param {"raw" | "pkcs8" | "spki"} format
- * @param {BufferSource} keyData
+ * @param {"jwk" | "raw" | "pkcs8" | "spki"} format
+ * @param {BufferSource | JsonWebKey} keyData
  * @param {boolean} extractable
  * @returns {Promise<CryptoKey>}
  */
 export async function importKey(format, keyData, extractable = false) {
-    return await crypto.subtle.importKey(
+    return await crypto.subtle.importKey(  // @ts-ignore-next-line
         format,
         keyData,
         { name: "AES-CBC", length: 256 },

@@ -16,7 +16,7 @@
   "homepage": "https://github.com/dchest/xaes",
   "scripts": {
     "test": "vitest run --test-timeout=300000",
-    "types": "tsc xaes.js --declaration --allowJs --emitDeclarationOnly"
+    "types": "tsc xaes.js --declaration --allowJs --emitDeclarationOnly --lib es2016,dom --target es2016"
   },
   "devDependencies": {
     "@stablelib/sha3": "^1.0.1",
