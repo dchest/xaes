@@ -114,7 +114,7 @@ export async function encrypt(params, key, data) {
             name: "AES-GCM",
             iv: derived.iv,
             tagLength: 128,
-            additionalData: params.additionalData
+            additionalData: params.additionalData ?? new Uint8Array()
         },
         derived.key,
         data
@@ -139,7 +139,7 @@ export async function decrypt(params, key, data) {
             name: "AES-GCM",
             iv: derived.iv,
             tagLength: 128,
-            additionalData: params.additionalData
+            additionalData: params.additionalData ?? new Uint8Array()
         },
         derived.key,
         data
