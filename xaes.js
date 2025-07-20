@@ -73,11 +73,12 @@ async function deriveKeyNonce(key, iv) {
         : new Uint8Array(iv);
     const k1 = await aesBlock(key, new Uint8Array(16), new Uint8Array(16));
 
-    let msb = 0;
-    for (let i = k1.length - 1; i >= 0; i--) {
-        [msb, k1[i]] = [(k1[i] >>> 7) & 0xff, ((k1[i] << 1) | msb) & 0xff];
+    let msb = k1[0] >> 7;
+    for (let i = 0; i < 15; i++) {
+        k1[i] = k1[i] << 1 | k1[i + 1] >> 7;
     }
-    k1[k1.length - 1] ^= (msb * 0b10000111) & 0xff;
+    k1[15] = k1[15] << 1;
+    k1[15] ^= 0x87 & ~(msb - 1);
 
     const kxBytes = new Uint8Array(32);
     kxBytes.set(await halfKey(0x01, key, ivBytes, k1), 0);
