@@ -85,3 +85,47 @@ test("xaes test vector, accumulated", async () => {
     const hashHex = Array.from(digest, byte => byte.toString(16).padStart(2, "0")).join("");
     expect(hashHex).toEqual("e6b9edf2df6cec60c8cbd864e2211b597fb69a529160cd040d56c0c210081939");
 });
+
+/*
+  Key commitment test vector generated with this Go program:
+
+package main
+
+import (
+	"bytes"
+	"crypto/aes"
+	"fmt"
+
+	"github.com/dchest/cmac"
+)
+
+func main() {
+	b, _ := aes.NewCipher(bytes.Repeat([]byte{1}, 32))
+	h, _ := cmac.New(b)
+	nonce := "ABCDEFGHIJKLMNOPQRSTUVWX"
+	h.Write([]byte("XCMT" + nonce + "\x00\x01\x00\x01"))
+	out := h.Sum(nil)
+	h.Reset()
+	h.Write([]byte("XCMT" + nonce + "\x00\x01\x00\x02"))
+	out = h.Sum(out)
+	fmt.Printf("%x", out)
+}
+
+*/
+test("kc-xaes test vector", async () => {
+    const nonce = new TextEncoder().encode("ABCDEFGHIJKLMNOPQRSTUVWX");
+    const plaintext = new TextEncoder().encode("XAES-256-GCM");
+    const key = await importKey(
+        "raw",
+        new Uint8Array(32).fill(0x01),
+        false
+    );
+    const ciphertext = await encrypt({ iv: nonce, keyCommitment: true }, key, plaintext);
+    const got = Array.from(new Uint8Array(ciphertext), byte => byte.toString(16).padStart(2, "0")).join("");
+    const expected = "ce546ef63c9cc60765923609b33a9a1974e96e52daf2fcf7075e2271"+
+                     "04076b6085eebab138855fe57811c04112eff989d44120dfff662d5475a383c3";
+    expect(got).toEqual(expected);
+
+    const decrypted = await decrypt({ iv: nonce, keyCommitment: true }, key, ciphertext);
+    expect(new Uint8Array(decrypted)).toEqual(plaintext);
+});

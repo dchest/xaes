@@ -52,9 +52,10 @@ async function halfKey(index, key, iv, k1) {
  *
  * @param {CryptoKey} key
  * @param {BufferSource} iv
- * @returns {Promise<{key: CryptoKey, iv: Uint8Array}>}
+ * @param {boolean} keyCommitment
+ * @returns {Promise<{key: CryptoKey, iv: Uint8Array, kc?: Uint8Array}>}
  */
-async function deriveKeyNonce(key, iv) {
+async function deriveKeyNonce(key, iv, keyCommitment) {
     if (key.algorithm.name != "AES-CBC") {
         throw new Error("key must be for AES-CBC");
     }
@@ -73,43 +74,79 @@ async function deriveKeyNonce(key, iv) {
         : new Uint8Array(iv);
     const k1 = await aesBlock(key, new Uint8Array(16), new Uint8Array(16));
 
-    let msb = 0;
-    for (let i = k1.length - 1; i >= 0; i--) {
-        [msb, k1[i]] = [(k1[i] >>> 7) & 0xff, ((k1[i] << 1) | msb) & 0xff];
+    let msb = k1[0] >> 7;
+    for (let i = 0; i < 15; i++) {
+        k1[i] = k1[i] << 1 | k1[i + 1] >> 7;
     }
-    k1[k1.length - 1] ^= (msb * 0b10000111) & 0xff;
+    k1[15] = k1[15] << 1;
+    k1[15] ^= 0x87 & ~(msb - 1);
 
-    const kxBytes = new Uint8Array(32);
-    kxBytes.set(await halfKey(0x01, key, ivBytes, k1), 0);
-    kxBytes.set(await halfKey(0x02, key, ivBytes, k1), 16);
+    const dkBytes = new Uint8Array(32);
+    dkBytes.set(await halfKey(0x01, key, ivBytes, k1), 0);
+    dkBytes.set(await halfKey(0x02, key, ivBytes, k1), 16);
 
-    const kx = await crypto.subtle.importKey(
+    const dk = await crypto.subtle.importKey(
         "raw",
-        kxBytes,
+        dkBytes,
         { name: "AES-GCM", length: 256 },
         false,
         [...key.usages]
     );
+    if (!keyCommitment) {
+        return {
+            key: dk,
+            iv: ivBytes.subarray(12)
+        };
+    }
+
+    const c3 = new Uint8Array([0x58, 0x43, 0x4D, 0x54, ...ivBytes.subarray(0, 12)]);
+    const c4 = new Uint8Array([...ivBytes.subarray(12),  0x00, 0x01, 0x00, 0x01]);
+    const c5 = new Uint8Array([...ivBytes.subarray(12),  0x00, 0x01, 0x00, 0x02]);
+    let x1 = await aesBlock(key, c3, new Uint8Array(16));
+    let x1xc4 = x1.map((x, i) => x ^ c4[i]);
+    let x1xc5 = x1.map((x, i) => x ^ c5[i]);
+    const kc = new Uint8Array(32);
+    kc.set(await aesBlock(key, x1xc4, k1), 0);
+    kc.set(await aesBlock(key, x1xc5, k1), 16);
+
     return {
-        key: kx,
-        iv: ivBytes.subarray(12)
+        key: dk,
+        iv: ivBytes.subarray(12),
+        kc,
     };
+}
+
+/**
+ * Compares two arrays of equal length in constant time.
+ *
+ * @param {Uint8Array} a
+ * @param {Uint8Array} b
+ * @returns {boolean}
+ */
+function bytesEqual(a, b) {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a[i] ^ b[i];
+    }
+    return diff === 0;
 }
 
 /**
  * Encrypts data using XAES-256-GCM with the given key and iv.
  * Key must be a 256-bit AES-CBC CryptoKey with 'encrypt' usage.
  *
- * @param {{iv: BufferSource, additionalData?: BufferSource}} params
+ * @param {{iv: BufferSource, additionalData?: BufferSource, keyCommitment?: boolean}} params
  *          - encryption parameters, containing the 24-byte iv (nonce)
  *            and optional additional data to authenticate.
+ *            If keyCommitment is true, appends 32-byte key commitment.
  * @param {CryptoKey} key - 256-bit AES-CBC CryptoKey.
  * @param {BufferSource} data - Data to encrypt.
  * @returns {Promise<ArrayBuffer>} - Encrypted data.
  */
 export async function encrypt(params, key, data) {
-    const derived = await deriveKeyNonce(key, params.iv);
-    return await crypto.subtle.encrypt(
+    const derived = await deriveKeyNonce(key, params.iv, !!params.keyCommitment);
+    const result = await crypto.subtle.encrypt(
         {
             name: "AES-GCM",
             iv: derived.iv,
@@ -119,21 +156,40 @@ export async function encrypt(params, key, data) {
         derived.key,
         data
     );
+    if (!derived.kc) {
+        return result;
+    }
+    const ct = new Uint8Array(result);
+    const out = new Uint8Array(ct.length + derived.kc.length);
+    out.set(ct);
+    out.set(derived.kc, ct.length);
+    return out;
 }
 
 /**
  * Decrypts data using XAES-256-GCM with the given key and iv.
  * Key must be a 256-bit AES-CBC CryptoKey with 'encrypt' and 'decrypt' usages.
  *
- * @param {{iv: BufferSource, additionalData?: BufferSource}} params
+ * @param {{iv: BufferSource, additionalData?: BufferSource, keyCommitment?: boolean}} params
  *           - decryption parameters, containing the 24-byte iv (nonce)
  *             and optional additional data to authenticate.
+ *            If keyCommitment is true, verifies key commitment.
  * @param {CryptoKey} key - 256-bit AES-CBC CryptoKey.
  * @param {BufferSource} data - Data to decrypt.
  * @returns {Promise<ArrayBuffer>} - Decrypted data.
  */
 export async function decrypt(params, key, data) {
-    const derived = await deriveKeyNonce(key, params.iv);
+    const derived = await deriveKeyNonce(key, params.iv, !!params.keyCommitment);
+    if (derived.kc) {
+        const dataBytes = ArrayBuffer.isView(data)
+            ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+            : new Uint8Array(data);
+
+        if (dataBytes.length < 48 || !bytesEqual(derived.kc, dataBytes.subarray(dataBytes.length - 32))) {
+            throw new Error();
+        }
+        data = dataBytes.subarray(0, dataBytes.length - 32);
+    }
     return await crypto.subtle.decrypt(
         {
             name: "AES-GCM",
