@@ -37,3 +37,9 @@ import { encrypt, decrypt, importKey } from 'xaes';
   console.log(new TextDecoder().decode(decrypted)); // Hello, World!
 })();
 ```
+
+## Key commitment
+
+If params passed to encrypt and decrypt include `keyCommitment: true`, uses
+the key committing variant -- KC-XAES -- as described in <https://eprint.iacr.org/2025/758>,
+which adds additional 32 bytes to ciphertext.

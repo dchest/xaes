@@ -17,6 +17,7 @@
   "scripts": {
     "test": "vitest run --test-timeout=300000",
     "test-browser": "vitest --test-timeout=300000 --browser.name=chrome",
+    "bench": "node xaes.bench.js",
     "types": "tsc xaes.js --declaration --allowJs --emitDeclarationOnly --lib es2016,dom --target es2016"
   },
   "devDependencies": {

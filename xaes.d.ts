@@ -2,7 +2,7 @@
  * Encrypts data using XAES-256-GCM with the given key and iv.
  * Key must be a 256-bit AES-CBC CryptoKey with 'encrypt' usage.
  *
- * @param {{iv: BufferSource, additionalData?: BufferSource}} params
+ * @param {{iv: BufferSource, additionalData?: BufferSource, keyCommitment?: boolean}} params
  *          - encryption parameters, containing the 24-byte iv (nonce)
  *            and optional additional data to authenticate.
  * @param {CryptoKey} key - 256-bit AES-CBC CryptoKey.
@@ -12,12 +12,13 @@
 export function encrypt(params: {
     iv: BufferSource;
     additionalData?: BufferSource;
+    keyCommitment?: boolean;
 }, key: CryptoKey, data: BufferSource): Promise<ArrayBuffer>;
 /**
  * Decrypts data using XAES-256-GCM with the given key and iv.
  * Key must be a 256-bit AES-CBC CryptoKey with 'encrypt' and 'decrypt' usages.
  *
- * @param {{iv: BufferSource, additionalData?: BufferSource}} params
+ * @param {{iv: BufferSource, additionalData?: BufferSource, keyCommitment?: boolean}} params
  *           - decryption parameters, containing the 24-byte iv (nonce)
  *             and optional additional data to authenticate.
  * @param {CryptoKey} key - 256-bit AES-CBC CryptoKey.
@@ -27,6 +28,7 @@ export function encrypt(params: {
 export function decrypt(params: {
     iv: BufferSource;
     additionalData?: BufferSource;
+    keyCommitment?: boolean;
 }, key: CryptoKey, data: BufferSource): Promise<ArrayBuffer>;
 /**
  * Generate a random key suitable for XAES-256-GCM.
